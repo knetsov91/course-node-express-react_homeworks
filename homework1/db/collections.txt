@@ -1,0 +1,76 @@
+use cooking
+
+
+db.createCollection("users",{
+	validator: {
+	
+		$jsonSchema: {
+			bsonType: "object",
+			
+			// additionalProperties: false,
+			required: ["name", "username", "gender", "role", "description", "status", "password"],
+			// additionalProperties: false,
+			properties: {
+				name: {
+					bsonType: "string",					
+				},
+				username: {
+					bsonType: "string",
+					pattern: "^[a-zA-Z0-9_]{1,15}$"
+				},
+				password: {
+					bsonType: "string",
+					pattern: "^(?=.*?[^0-9a-zA-Z])(?=.*?[0-9]).{8,}$"
+							
+				},
+				registeredAt: {
+					bsonType: "date"
+				},
+				gender: {
+					enum: ["male", "Male", "female", "Female"]
+				},
+				role: {
+					enum: ["user", "admin"]
+				},
+				description: {
+					bsonType: "string",
+					maxLength: 150
+				},
+				createdAt: {
+					bsonType: "date"
+				},
+				modifiedAt: {
+					bsonType: "date"
+				},
+				status: {
+					enum: ["active", "suspended", "deactivated"]
+				}
+			}
+
+		}
+	}
+})
+
+db.createCollection("recipe",
+	{validator: {
+			$jsonSchema: {
+				bsonType: "object",
+				// required: [],
+				properties: {
+					createAt: {
+						bsonType: "string"
+					},
+					user_id: {
+						
+							bsonType: "objectId"
+						
+					}	
+					,
+					keywords: {
+						bsonType: "array"
+					}
+				}
+			
+		}
+	}
+})
