@@ -3,41 +3,14 @@ const dbUtil = require('../db/dbUtils');
 const ObjectID = require("mongodb").ObjectID;
 const router = express.Router();
 
-// const userExists = (options) => {
-//     return new Promise((resolve, reject) => {
-//         dbUtil.findById({collection:"users", id: options.data}).then(data =>
-//             {
-//                 console.log("userExists " + JSON.stringify(data))
-//                 console.log("userExists " + data.length)
-//                  if(data.length === 1) {
-//                     resolve(data); 
-                    
-//                  }  else {
-//                     reject([]) 
-//                  }
-//             })
-//              .catch(err => {
-//                 console.log("error userExists()")
-//              })
-//     });
-// } 
 router.get("/api/users/:id/recipe", (req, res) => {
-//     dbUtil.findById({collection: "users", id: req.params.id}).then(data =>
-//    {
-//         console.log(data.length)
-//         res.json(data)}
-//     )
-//     .catch(err => {
-       
-//     })
     const id =req.params.id;
-    dbUtil.userExists({collection: "users", data: id }).then(data => {
-        // res.json({msg: data})
-        console.log("get :id/recipe " + data)
-    
-        dbUtil.select({collection: "recipe", cond: {"user_id": ObjectID(id)}})
-        .then(d => {
-            console.log("select recipe  " +  JSON.stringify(d))
+    dbUtil
+    .userExists({collection: "users", data: id })
+    .then(data => {  
+        dbUtil
+        .select({collection: "recipe", cond: {"user_id": ObjectID(id)}})
+        .then(d => {            
             if( d.length !== 0){
                 res.status(200).json(d)
             } else {
@@ -51,48 +24,51 @@ router.get("/api/users/:id/recipe", (req, res) => {
     }).catch(r =>{ 
         res.status(404).json({msg: "user not found"})
     })
-    // dbUtil.select({ collection: "recipe"})
-    // .then(data => res.status(200).json(data))
-    // .catch(err => res.status(400).json(err))
+ 
 });
 
 router.post("/api/users/:id/recipe", (req, res) => {
-    const userId = req.params.id;
-    console.log(req.body)
+    const userId = req.params.id;    
     const data = Object.assign({}, req.body, {"user_id": ObjectID(userId)})
-    console.log(data)
-    console.log("ObjectID " + ObjectID(req.params.id))
-    dbUtil.insert({collection: "recipe", data})
-    .then(d => {
-        const id = d["insertedIds"]["0"];
-        console.log(d)
-        res.set("Location", `/api/users/${userId}/recipe/${id}`)
-        res.status(201).json({msg: `recipe ${id} inserted `})
+
+    dbUtil
+    .userExists({collection: "users", data: userId })
+    .then(rez => {        
+        dbUtil
+        .insert({collection: "recipe", data})
+        .then(d => {
+            const id = d["insertedIds"]["0"];            
+            res.set("Location", `/api/users/${userId}/recipe/${id}`)
+            res.status(201).json({msg: `recipe ${id} inserted `})
+        })
+        .catch(rez => { 
+            res.status(400).json({err: rez.errmsg })
+        })
     })
-    .catch(rez => {
-        console.log(data)
-        console.log("--" + rez)
-        res.status(401).json(rez)
+    .catch(q => {
+        console.log(q)
+        res.status(404).json({msg: "No such user"});
     })
 })
 
 router.get("/api/users/:userId/recipe/:recipeId", (req, res) => {
     const id =req.params.userId;
     const recId = req.params.recipeId;
-    dbUtil.userExists({collection: "users", data: id }).then(data => {
-        dbUtil.select({collection: "recipe", cond: {"_id": recId}})
-        .then(d => {
-            console.log("???  ",JSON.stringify(d))
+    dbUtil
+    .userExists({collection: "users", data: id })
+    .then(data => {
+        dbUtil
+        .select({collection: "recipe", cond: {"_id": recId}})
+        .then(d => {         
             if (d.length === 0 ) {
                 res.status(404).json({msg: "no such recipe"})
             } else {
                 res.status(200).json(d)
-            }
-            
+            }            
         })
         .catch(er => {
             res.status(404).json({msg: "no such recipe"})
-            console.log("&&& "  +er)
+            console.log("Error "  +er)
         })
     })
     .catch(e => {
@@ -105,22 +81,26 @@ router.get("/api/users/:userId/recipe/:recipeId", (req, res) => {
 router.delete("/api/users/:userId/recipe/:recipeId", (req, res) => {
     const id =req.params.userId;
     const recId = req.params.recipeId;
-    dbUtil.userExists({collection: "users", data: id })
+    dbUtil
+    .userExists({collection: "users", data: id })
     .then(data => {
-
-        dbUtil.select({collection: "recipe", id: recId})
+        dbUtil
+        .select({collection: "recipe", cond:{"_id": recId}})
         .then(rez => {
-            dbUtil.remove({collection: "recipe", id: recId})
-            .then(rez => {
-
-                res.status(201).json({})
-            })
-            .catch(err => {
+            if (rez.length === 0) {
                 res.status(404).json({msg: "recipe not found"})
-                // res.send(err)
-            })
+            } else {
+                dbUtil
+                .remove({collection: "recipe", id: recId})
+                .then(rez => {
+                    res.status(201).json({})
+                })
+                .catch(err => {
+                    res.status(404).json({msg: "recipe not found"});                    
+                })
+            }
         })
-        .catch(a =>{
+        .catch(a => {
             res.status(404).json({msg: "recipe not found"})
         })
         
@@ -130,4 +110,44 @@ router.delete("/api/users/:userId/recipe/:recipeId", (req, res) => {
     })
 })
 
+
+router.put("/api/users/:userId/recipe/:recipeId", (req, res) => {
+    const id =req.params.userId;
+    const recId = req.params.recipeId;
+
+    dbUtil.userExists({collection: "users", data: id }).then(d => {
+        dbUtil
+        .select({collection: "recipe", cond: {"_id": recId}})
+        .then(d => {
+            if (d.length === 0) {
+                res.status(404).json({msg: "no such recipe"})
+            } else {
+                dbUtil
+                .update({collection: 'recipe',  id: recId, data: req.body})
+                .then(rez => {
+                    // if(rez.nModified === 1)
+                    // {   
+                    //     res.status(200).json({msg: `updated`})
+                    // } else {
+                    //     res.status(404).json({msg: `nothing to update`})
+                    // }
+                    
+                    res.json(rez);
+                })
+                .catch(err => {
+                    res.status(400).json({msg: err.errmsg});
+                    console.log("err from put /users/:id " + err)
+                })
+            }
+            
+        })
+        .catch(er => {
+            res.status(404).json({msg: "no such recipe"})
+            console.log("Error "  +er)
+        })
+    })
+    .catch(e => {        
+        res.status(404).json({msg: "No such user"});
+    })
+});
 module.exports = router;
